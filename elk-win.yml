@@ -1,0 +1,89 @@
+---
+- hosts: win
+  tasks:
+  - name: elasticsearch
+    win_chocolatey:
+      name: elasticsearch
+      version: 6.2.4
+
+  - name: set path for elasticsearch
+    win_lineinfile:
+      path: C:\ProgramData\chocolatey\lib\elasticsearch\tools\elasticsearch-6.2.4\config\elasticsearch.yml
+      regexp: 'path.data:'
+      line: 'path.data:C:\ProgramData\chocolatey\lib\elasticsearch\tools\elasticsearch-6.2.4\logs\data'
+
+  - name: set log path elasticsearch
+    win_lineinfile:
+      path: C:\ProgramData\chocolatey\lib\elasticsearch\tools\elasticsearch-6.2.4\config\elasticsearch.yml
+      regexp: 'path.logs:'
+      line: 'path.logs:C:\ProgramData\chocolatey\lib\elasticsearch\tools\elasticsearch-6.2.4\logs'
+
+  - name: memory setup
+    win_lineinfile:
+      path: C:\ProgramData\chocolatey\lib\elasticsearch\tools\elasticsearch-6.2.4\config\elasticsearch.yml
+      regexp: 'bootstrap.memory_lock: true'
+      line: 'bootstrap.memory_lock: true'
+
+  - name: Updating the config file to allow outside access
+    win_lineinfile:
+      path: C:\ProgramData\chocolatey\lib\elasticsearch\tools\elasticsearch-6.2.4\config\elasticsearch.yml
+      regexp: 'network.host:'
+      line: 'network.host: 0.0.0.0'
+
+  - name: Updating the port in config file
+    win_lineinfile:
+      path: C:\ProgramData\chocolatey\lib\elasticsearch\tools\elasticsearch-6.2.4\config\elasticsearch.yml
+      regexp: 'http.port:'
+      line: 'http.port: 9200'
+   
+  - name: elasticsearch start
+    win_command: net start elasticsearch-service-x64
+  - name: kibana
+    win_chocolatey:
+      name: kibana
+      version: 6.2.4
+  
+  - name: Defining server port
+    win_lineinfile:
+      path: C:\ProgramData\chocolatey\lib\kibana\tools\kibana-6.2.4-windows-x86_64\config\kibana.yml
+      regexp: 'server.port:'
+      line: 'server.port: 5601'
+  - name: Updating the config file to allow outside access
+    win_lineinfile:
+      path: C:\ProgramData\chocolatey\lib\kibana\tools\kibana-6.2.4-windows-x86_64\config\kibana.yml
+      regexp: 'server.host:'
+      line: 'server.host: 192.168.1.18'
+  - name: Defining Elasticsearch URL
+    win_lineinfile:
+      path: C:\ProgramData\chocolatey\lib\kibana\tools\kibana-6.2.4-windows-x86_64\config\kibana.yml
+      regexp: 'elasticsearch.url:'
+      line: 'elasticsearch.url: "http://localhost:9200"'
+
+# copy config files to logstash
+  - name: copy files
+    win_copy:
+      src: '/home/logstash.conf'
+      dest: 'C:\ProgramData\chocolatey\lib\logstash\tools\logstash-6.2.4\bin\logstash.conf'
+    
+# starts kibana service
+  - name: kibana service
+    win_command: powershell.exe C:\ProgramData\chocolatey\lib\kibana\tools\kibana-6.2.4-windows-x86_64\bin\kibana.bat
+    ignore_errors: yes
+      
+  - name: kibana service
+    win_service:
+      name: kibana-6.4-new
+      path: C:\ProgramData\chocolatey\lib\kibana\tools\kibana-6.2.4-windows-x86_64\bin
+      start_mode: auto
+      state: started
+# skipping errors
+   - name: this will not be counted as a failure
+     win_command: C:\ProgramData\chocolatey\lib\kibana\tools\kibana-6.2.4-windows-x86_64\bin\kibana.bat
+     ignore_errors: yes
+
+# start logstash 
+   - name: logstash service
+     win_command: powershell.exe C:\ProgramData\chocolatey\lib\logstash\tools\logstash-6.2.4\bin\logstash.bat -f logstash.conf &
+      name: logstash-6.4
+      path: C:\ProgramData\chocolatey\lib\logstash\tools\logstash-6.2.4\bin\logstash.bat -f logstash.conf
+      start_mode: auto
